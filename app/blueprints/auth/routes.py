@@ -24,6 +24,6 @@ def login(data):
 @jwt_required(refresh=True)
 def refresh():
     """刷新访问令牌接口"""
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     tokens = AuthService.refresh_access_token(user_id)
     return tokens

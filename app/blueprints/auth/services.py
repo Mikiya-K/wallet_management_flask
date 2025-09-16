@@ -4,7 +4,6 @@ from flask_jwt_extended import create_access_token, create_refresh_token
 from app.extensions import logger
 from app.models.user import User
 from app.errors.custom_errors import AuthException, AccountLockedError
-#from app.utils.email import send_password_reset_email
 
 class AuthService:
     @staticmethod

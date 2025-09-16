@@ -16,6 +16,7 @@ class Wallet(db.Model):
 
     # 关系
     user = db.relationship('User', back_populates='wallets', lazy='select')
+    miners = db.relationship('Miners', back_populates='coldkey_wallet', lazy='select')
 
     def save(self):
         """保存钱包到数据库"""
@@ -37,6 +38,11 @@ class Wallet(db.Model):
     def find_by_name(cls, coldkey_name):
         """通过coldkey_name查找钱包"""
         return cls.query.filter(cls.coldkey_name == coldkey_name).first()
+
+    @classmethod
+    def find_by_address(cls, coldkey_address):
+        """通过coldkey_address查找钱包"""
+        return cls.query.filter(cls.coldkey_address == coldkey_address).first()
 
     @classmethod
     def find_by_user(cls, user_id):

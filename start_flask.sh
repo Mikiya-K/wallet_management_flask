@@ -1,1 +1,1 @@
-/root/workspace/wallet_management_flask/venv/bin/gunicorn -w 1 -b 0.0.0.0:16003 --timeout 120 wsgi:app --enable-stdio-inheritance
+./venv/bin/gunicorn -w 1 -b 0.0.0.0:16003 --timeout 300 wsgi:app --enable-stdio-inheritance

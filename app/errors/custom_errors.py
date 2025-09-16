@@ -55,10 +55,6 @@ class InvalidTokenError(AuthException):
     error_code = "invalid_token"
     message = "Invalid or expired authentication token"
 
-# =====================
-# 钱包密码相关异常
-# =====================
-
 class WalletPasswordError(BusinessException):
     """钱包密码异常基类"""
     error_code = "wallet_password_error"
@@ -98,6 +94,12 @@ class RemoveStakeError(BusinessException):
     status_code = HTTPStatus.INTERNAL_SERVER_ERROR
     error_code = "remove_stake_failed"
     message = "Blockchain operation succeeded‌ but remove staked failed"
+
+class MinerRegistrationError(BusinessException):
+    """矿工注册异常"""
+    status_code = HTTPStatus.INTERNAL_SERVER_ERROR
+    error_code = "miner_registration_failed"
+    message = "Miner registration failed"
 
 class ResourceNotFoundError(BusinessException):
     """资源未找到异常"""
