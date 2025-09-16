@@ -75,12 +75,17 @@ BASE_BLOCK = {
 }
 
 # 配置日志
+import os
+log_dir = 'logs'
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('miner_register.log'),
-        logging.StreamHandler()
+        logging.FileHandler(os.path.join(log_dir, 'miner_register.log'))
+        # 移除StreamHandler，避免与PM2日志重复
     ]
 )
 logger = logging.getLogger(__name__)
