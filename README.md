@@ -79,6 +79,7 @@ psql -U postgres
 # 创建数据库
 CREATE DATABASE wallet_management;
 CREATE DATABASE metagraph;
+# 数据库metagraph需包含表regevents
 
 # 创建用户（可选）
 CREATE USER your_username WITH PASSWORD 'your_password';
@@ -99,6 +100,9 @@ flask db upgrade
 ### 7. 启动服务
 
 ```bash
+# 按照实际使用需求修改ecosystem.config.js（含启动路径）
+nano ecosystem.config.js
+
 # 使用 PM2 启动所有服务
 pm2 start ecosystem.config.js
 
