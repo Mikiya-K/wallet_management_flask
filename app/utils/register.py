@@ -415,6 +415,9 @@ class MinerRegistrationService:
 
     def _wait_register(self, subtensor, netuid: int, BASE_BLOCK: dict, max_fee: float, wallets: dict) -> bool:
         """等待注册条件满足"""
+        if netuid not in BASE_BLOCK:
+            logger.warning(f"子网 {netuid} 未配置基础区块，跳过注册")
+            return False
         base_boot_block = BASE_BLOCK[netuid]
         cur_block = subtensor.get_current_block()
         subnetInfo: SubnetHyperparameters = subtensor.get_subnet_hyperparameters(netuid=netuid, block=cur_block)
