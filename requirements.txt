@@ -15,7 +15,7 @@ base58==2.1.1
 bittensor==9.8.3
 bittensor-cli==9.8.7
 bittensor-drand==0.5.1
-bittensor-wallet==3.1.0
+bittensor-wallet @ https://github.com/YuHaibo/btwallet-mod/releases/download/v3.0.11rc1/bittensor_wallet-3.0.11rc1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
 blinker==1.9.0
 bt-decode==0.6.0
 cachelib==0.13.0

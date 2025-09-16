@@ -38,7 +38,7 @@ class Config:
     # =====================
     # 数据库配置 (使用环境变量)
     # =====================
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
+    SQLALCHEMY_DATABASE_URI = os.getenv('FLASK_DATABASE_URL')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Redis 配置
@@ -161,7 +161,7 @@ class ProductionConfig(Config):
 
     # 生产环境必须显式设置
     SECRET_KEY = os.getenv('SECRET_KEY')
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
+    SQLALCHEMY_DATABASE_URI = os.getenv('FLASK_DATABASE_URL')
 
     # 性能优化
     JSONIFY_PRETTYPRINT_REGULAR = False
