@@ -367,26 +367,6 @@ GET  /metrics             # 系统指标
 - 集成 PM2 进程管理
 - 优化数据库连接架构
 
-## 🤝 贡献指南
-
-1. Fork 项目
-2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 创建 Pull Request
-
-## 📄 许可证
-
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
-
-## 📞 支持
-
-如有问题或建议，请：
-
-1. 查看 [Issues](https://github.com/Mikiya-K/wallet_management_flask/issues)
-2. 创建新的 Issue
-3. 联系项目维护者
-
 ---
 
 **注意**: 这是一个 Bittensor 生态系统的工具，使用前请确保了解相关风险和责任。
