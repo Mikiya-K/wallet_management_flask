@@ -10,6 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.sql import text
 from werkzeug.security import generate_password_hash
 from datetime import datetime
+import os
 
 # revision identifiers, used by Alembic.
 revision = '62272a64bc7a'
@@ -19,6 +20,10 @@ depends_on = None
 
 
 def upgrade():
+    # 获取配置的管理员用户名和密码
+    admin_username = os.getenv('INITIAL_ADMIN_USERNAME', 'btc2Moon')
+    admin_password = os.getenv('INITIAL_ADMIN_PASSWORD', 'btc2Moon')
+
     # 获取数据库连接
     conn = op.get_bind()
 
@@ -66,7 +71,7 @@ def upgrade():
             )
             print(f"Added role: {role_data['name']}")
 
-    # 2. 添加 btc2Moon 用户到 users 表
+    # 2. 添加管理员用户到 users 表
     users_table = sa.table(
         'users',
         sa.Column('id', sa.Integer, primary_key=True),
@@ -81,18 +86,19 @@ def upgrade():
 
     # 检查用户是否已存在
     user_exists = conn.execute(
-        text("SELECT id FROM users WHERE name = 'btc2Moon'")
+        text("SELECT id FROM users WHERE name = :username"),
+        {'username': admin_username}
     ).fetchone()
 
     if not user_exists:
         # 生成密码哈希
-        password_hash = generate_password_hash('btc2Moon')
+        password_hash = generate_password_hash(admin_password)
 
         current_time = datetime.utcnow()
         op.bulk_insert(users_table,
             [
                 {
-                    'name': 'btc2Moon',
+                    'name': admin_username,
                     'password_hash': password_hash,
                     'is_active': True,
                     'last_login': None,
@@ -102,7 +108,7 @@ def upgrade():
                 }
             ]
         )
-        print("Added user: btc2Moon")
+        print(f"Added user: {admin_username}")
 
     # 3. 向 user_roles 表添加权限分配
     # 获取 admin 角色 ID
@@ -110,15 +116,16 @@ def upgrade():
         text("SELECT id FROM roles WHERE name = 'admin'")
     ).fetchone()
 
-    # 获取 btc2Moon 用户 ID
-    btc2moon_user = conn.execute(
-        text("SELECT id FROM users WHERE name = 'btc2Moon'")
+    # 获取管理员用户 ID
+    admin_user = conn.execute(
+        text("SELECT id FROM users WHERE name = :username"),
+        {'username': admin_username}
     ).fetchone()
 
     # 如果角色和用户都存在，则创建关联
-    if admin_role and btc2moon_user:
+    if admin_role and admin_user:
         role_id = admin_role[0]
-        user_id = btc2moon_user[0]
+        user_id = admin_user[0]
 
         # 检查关联是否已存在
         association_exists = conn.execute(
@@ -145,10 +152,13 @@ def upgrade():
                     }
                 ]
             )
-            print("Assigned admin role to btc2Moon user")
+            print(f"Assigned admin role to {admin_username} user")
 
 
 def downgrade():
+    # 获取配置的管理员用户名
+    admin_username = os.getenv('INITIAL_ADMIN_USERNAME', 'btc2Moon')
+
     # 获取数据库连接
     conn = op.get_bind()
 
@@ -158,26 +168,28 @@ def downgrade():
         text("SELECT id FROM roles WHERE name = 'admin'")
     ).fetchone()
 
-    # 获取 btc2Moon 用户 ID
-    btc2moon_user = conn.execute(
-        text("SELECT id FROM users WHERE name = 'btc2Moon'")
+    # 获取管理员用户 ID
+    admin_user = conn.execute(
+        text("SELECT id FROM users WHERE name = :username"),
+        {'username': admin_username}
     ).fetchone()
 
-    if admin_role and btc2moon_user:
+    if admin_role and admin_user:
         role_id = admin_role[0]
-        user_id = btc2moon_user[0]
+        user_id = admin_user[0]
 
         op.execute(
             text("DELETE FROM user_roles WHERE user_id = :user_id AND role_id = :role_id"),
             {'user_id': user_id, 'role_id': role_id}
         )
-        print("Removed admin role from btc2Moon user")
+        print(f"Removed admin role from {admin_username} user")
 
-    # 2. 删除 btc2Moon 用户
+    # 2. 删除管理员用户
     op.execute(
-        text("DELETE FROM users WHERE name = 'btc2Moon'")
+        text("DELETE FROM users WHERE name = :username"),
+        {'username': admin_username}
     )
-    print("Removed user: btc2Moon")
+    print(f"Removed user: {admin_username}")
 
     # 3. 删除添加的角色
     roles_to_remove = ['admin', 'user']
