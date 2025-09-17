@@ -79,7 +79,7 @@ psql -U postgres
 # 创建数据库
 CREATE DATABASE wallet_management;
 CREATE DATABASE metagraph;
-# 数据库metagraph需包含表regevents
+# 数据库metagraph需包含表regevents、hyperparameters_normalized
 
 # 创建用户（可选）
 CREATE USER your_username WITH PASSWORD 'your_password';
