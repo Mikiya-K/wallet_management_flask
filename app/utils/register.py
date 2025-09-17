@@ -23,9 +23,9 @@ from bittensor.core.subtensor import Subtensor
 from bittensor import SubnetHyperparameters
 from bittensor_wallet import Wallet
 
-# 添加Django项目路径到sys.path
+# 添加项目路径到sys.path
 project_root = os.path.dirname(os.path.abspath(__file__))
-console_root = os.path.dirname(project_root)
+console_root = os.path.dirname(os.path.dirname(project_root))  # 向上两级到项目根目录
 sys.path.insert(0, console_root)
 
 # 数据库连接
