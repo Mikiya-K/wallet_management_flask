@@ -21,7 +21,6 @@ from sqlalchemy.exc import OperationalError, InterfaceError, DatabaseError
 import bittensor as bt
 from bittensor.core.subtensor import Subtensor
 from bittensor import SubnetHyperparameters
-from bittensor_wallet import Wallet
 
 # 添加项目路径到sys.path
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -254,12 +253,15 @@ class MinerRegistrationService:
                            f"Miner={miner_name}, Wallet={wallet_name}, "
                            f"Hotkey={hotkey}, Netuid={netuid}")
 
-                wallet = Wallet(name=wallet_name, hotkey=miner_name)
+                wallet = bt.Wallet(name=wallet_name, hotkey=miner_name)
 
                 # 从数据库获取钱包密码
                 password = self._get_wallet_password(wallet_name)
-                coldkey = wallet.get_coldkey(password=password)
-                # wallet.set_coldkey(keypair=coldkey, overwrite=False, save_coldkey_to_env=False)  # 注释掉避免文件覆盖提示
+                wallet.coldkey_file.save_password_to_env(password)
+                wallet.unlock_coldkey()
+
+                #coldkey = wallet.get_coldkey(password=password)
+                #wallet.set_coldkey(keypair=coldkey, overwrite=False, save_coldkey_to_env=False)  # 注释掉避免文件覆盖提示
                 hotkey_key = f"{wallet_name}-{miner_name}-{hotkey}"
                 wallets[hotkey_key] = wallet
 
