@@ -60,9 +60,8 @@ def create_app(config_class=None):
     api.register_blueprint(user_bp)
     api.register_blueprint(wallet_bp)
 
-    # 表创建
-    with app.app_context():
-        db.create_all()
+    # 生产环境使用 flask db upgrade 来创建表
+    # 开发环境可以使用 db.create_all() 快速创建表
 
     # 健康检查端点
     @app.route('/health')
