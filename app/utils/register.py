@@ -259,7 +259,7 @@ class MinerRegistrationService:
                 # 从数据库获取钱包密码
                 password = self._get_wallet_password(wallet_name)
                 coldkey = wallet.get_coldkey(password=password)
-                wallet.set_coldkey(keypair=coldkey, overwrite=False, save_coldkey_to_env=False)
+                # wallet.set_coldkey(keypair=coldkey, overwrite=False, save_coldkey_to_env=False)  # 注释掉避免文件覆盖提示
                 hotkey_key = f"{wallet_name}-{miner_name}-{hotkey}"
                 wallets[hotkey_key] = wallet
 
