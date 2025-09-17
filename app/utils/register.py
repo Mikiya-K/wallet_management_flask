@@ -457,41 +457,62 @@ class MinerRegistrationService:
                 last_interval_boot_block = self._get_last_interval_boot_block(subtensor=subtensor, base_boot_block=base_boot_block, cur_block=cur_block, netuid=netuid)
                 reg_number = self._query_register_events_count_by_netuid(netuid, last_interval_boot_block, cur_block)
                 recycle = subtensor.recycle(netuid=netuid, block=cur_block)
-                estimate_recycle = self._estimate_next_recycle(netuid, reg_number, recycle.tao, MAX_REGISTRATION_COUNT_PER_INTERVAL)
-                logger.debug(f"estimate_recycle {estimate_recycle}")
+                estimate_recycle, min_burn, max_burn = self._estimate_next_recycle(netuid, reg_number, recycle.tao, MAX_REGISTRATION_COUNT_PER_INTERVAL)
+                logger.debug(f"estimate_recycle {estimate_recycle}, min_burn {min_burn}, max_burn {max_burn}")
 
             if roundBlock == 359 and recycle.tao > 0:  # launchFrom = 359
-                if estimate_recycle <= max_fee:
-                    logger.debug(f"estimate_recycle less than max_fee {estimate_recycle} {max_fee} start to reg")
+                if estimate_recycle <= max_fee and estimate_recycle >= min_burn and estimate_recycle <= max_burn:
+                    logger.debug(f"estimate_recycle {estimate_recycle} less than max_fee {max_fee} and more than min_burn {min_burn} and less than max_burn {max_burn} start to reg")
                     return True
                 else:
-                    logger.debug(f"estimate_recycle big than max_fee {estimate_recycle} {max_fee} wait next round")
+                    logger.debug(f"estimate_recycle {estimate_recycle} max_fee {max_fee} min_burn {min_burn} max_burn {max_burn} wait next round")
                     return False
 
-    def _estimate_next_recycle(self, netuid: int, reg_num: int, cur_recycle: float, max_reg_limit: int) -> float:
-        """估算下一轮回收费用"""
-        recycly_rate = {
-            18: [0.786, 1.0, 1.106, 1.428571],
-            19: [0.9, 1.0, 1.1, 1.2],
-            22: [1.0, 1.0, 1.0, 1.0],
-            41: [1.0, 1.0, 1.0, 1.0],
-            180: [0.5, 1.0, 1.5, 2],
-            172: [0.5, 1.0, 1.5, 2],  # 添加测试网netuid
-        }
+    def _estimate_next_recycle(self, netuid: int, reg_num: int, cur_recycle: float, max_reg_limit: int) -> tuple:
+        """估算下一轮回收费用，返回 (estimateValue, min_burn, max_burn)"""
+        # 从数据库获取 hyperparameters 数据
+        query = text("""
+            SELECT netuid, adjustment_alpha, min_burn, max_burn, timestamp
+            FROM hyperparameters_normalized
+            WHERE netuid = :netuid
+            ORDER BY timestamp DESC
+            LIMIT 1
+        """)
+        result = metagraph_session.execute(query, {'netuid': netuid}).fetchone()
+
+        if not result:
+            raise ValueError(f"未找到 netuid {netuid} 的 hyperparameters 数据")
+
+        netuid_db, adjustment_alpha, min_burn, max_burn, timestamp = result
+        adjustment_alpha = float(adjustment_alpha)
+        min_burn = float(min_burn)
+        max_burn = float(max_burn)
+
+        # 根据 adjustment_alpha 计算4个回收率
+        # 公式: [1-(1-a)/2, 1, 1+(1-a)/2, 1+(1-a)]
+        recycly_rate = [
+            1 - (1 - adjustment_alpha) / 2,  # 第一档
+            1.0,                             # 第二档
+            1 + (1 - adjustment_alpha) / 2,  # 第三档
+            1 + (1 - adjustment_alpha)       # 第四档
+        ]
+
+        logger.debug(f"从数据库获取 netuid {netuid} 的数据: alpha={adjustment_alpha}, min_burn={min_burn}, max_burn={max_burn}, 计算得到recycly_rate: {recycly_rate}")
 
         estimate_recycle = None
         if reg_num == 0:
-            estimate_recycle = cur_recycle * recycly_rate[netuid][0]
+            estimate_recycle = cur_recycle * recycly_rate[0]
         elif reg_num <= max_reg_limit / 3:
-            estimate_recycle = cur_recycle * recycly_rate[netuid][1]
+            estimate_recycle = cur_recycle * recycly_rate[1]
         elif reg_num > max_reg_limit / 3 and reg_num <= max_reg_limit * 2 / 3:
-            estimate_recycle = cur_recycle * recycly_rate[netuid][2]
+            estimate_recycle = cur_recycle * recycly_rate[2]
         elif reg_num > max_reg_limit * 2 / 3 and reg_num <= max_reg_limit:
-            estimate_recycle = cur_recycle * recycly_rate[netuid][3]
+            estimate_recycle = cur_recycle * recycly_rate[3]
 
-        estimateValue = estimate_recycle if netuid != 41 else max(0.25, estimate_recycle)
+        estimateValue = estimate_recycle
         logger.debug(f"EstimateNextRecycle: {netuid}, reg_num {reg_num} miners, cur_recycle {cur_recycle} max_reg_limit {max_reg_limit} estimate_recycle {estimateValue}")
-        return estimateValue
+
+        return (estimateValue, min_burn, max_burn)
 
     def _query_register_events_count_by_netuid(self, netuid: int, beg_block: int, end_block: int) -> int:
         """查询注册事件数量"""
