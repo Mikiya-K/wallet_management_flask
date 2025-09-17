@@ -177,7 +177,7 @@ class MinerRegistrationService:
                 SELECT r.*, m.name as miner_name, m.wallet, m.hotkey
                 FROM miners_to_reg r
                 JOIN miners m ON r.miners_id = m.id
-                WHERE r.registered = 0
+                WHERE (r.registered = 0 OR r.registered IS NULL)
                 AND r.is_deleted = 0
                 AND (r.start_time < NOW() OR r.start_time IS NULL)
                 AND (r.end_time > NOW() OR r.end_time IS NULL)
@@ -726,11 +726,11 @@ def test_database_connection():
         miners_count = db_session.execute(text("SELECT COUNT(*) FROM miners")).scalar()
         reg_count = db_session.execute(text("""
             SELECT COUNT(*) FROM miners_to_reg
-            WHERE registered = 0 AND is_deleted = 0
+            WHERE (registered = 0 OR registered IS NULL) AND is_deleted = 0
         """)).scalar()
         pending_count = db_session.execute(text("""
             SELECT COUNT(*) FROM miners_to_reg
-            WHERE registered = 0 AND is_deleted = 0
+            WHERE (registered = 0 OR registered IS NULL) AND is_deleted = 0
             AND (start_time < NOW() OR start_time IS NULL)
             AND (end_time > NOW() OR end_time IS NULL)
         """)).scalar()
