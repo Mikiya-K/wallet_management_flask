@@ -53,7 +53,6 @@ db_session = MainSession()
 metagraph_database_url = create_database_url('metagraph')
 metagraph_engine = create_engine(metagraph_database_url)
 MetagraphSession = sessionmaker(bind=metagraph_engine)
-metagraph_session = MetagraphSession()
 
 # 导入加密相关库
 import base64
@@ -200,10 +199,14 @@ class MinerRegistrationService:
         检查hotkey是否在注册黑名单中
         如果在黑名单中则返回False，否则返回True
         """
+        session = None
         try:
+            # 创建新的会话以避免事务冲突
+            session = MetagraphSession()
+
             # 查询regblacklist表中是否存在该hotkey
             query = text("SELECT COUNT(*) FROM regblacklist WHERE subnet = :netuid AND hotkey = :hotkey")
-            result = metagraph_session.execute(query, {'netuid': netuid, 'hotkey': hotkey}).scalar()
+            result = session.execute(query, {'netuid': netuid, 'hotkey': hotkey}).scalar()
 
             # 如果COUNT为0，说明不在黑名单中，返回True
             # 如果COUNT大于0，说明在黑名单中，返回False
@@ -211,8 +214,21 @@ class MinerRegistrationService:
 
         except Exception as e:
             logger.error(f"检查hotkey黑名单状态时出错: {e}")
+            # 回滚事务
+            if session:
+                try:
+                    session.rollback()
+                except Exception as rollback_error:
+                    logger.error(f"回滚事务时出错: {rollback_error}")
             # 出错时默认返回True，允许注册
             return True
+        finally:
+            # 确保会话被正确关闭
+            if session:
+                try:
+                    session.close()
+                except Exception as close_error:
+                    logger.error(f"关闭会话时出错: {close_error}")
 
     # 执行注册
     def _process_registration(self, pending_registrations: List[dict]):
@@ -473,23 +489,44 @@ class MinerRegistrationService:
 
     def _estimate_next_recycle(self, netuid: int, reg_num: int, cur_recycle: float, max_reg_limit: int) -> tuple:
         """估算下一轮回收费用，返回 (estimateValue, min_burn, max_burn)"""
-        # 从数据库获取 hyperparameters 数据
-        query = text("""
-            SELECT netuid, adjustment_alpha, min_burn, max_burn, timestamp
-            FROM hyperparameters_normalized
-            WHERE netuid = :netuid
-            ORDER BY timestamp DESC
-            LIMIT 1
-        """)
-        result = metagraph_session.execute(query, {'netuid': netuid}).fetchone()
+        session = None
+        try:
+            # 创建新的会话以避免事务冲突
+            session = MetagraphSession()
 
-        if not result:
-            raise ValueError(f"未找到 netuid {netuid} 的 hyperparameters 数据")
+            # 从数据库获取 hyperparameters 数据
+            query = text("""
+                SELECT netuid, adjustment_alpha, min_burn, max_burn, timestamp
+                FROM hyperparameters_normalized
+                WHERE netuid = :netuid
+                ORDER BY timestamp DESC
+                LIMIT 1
+            """)
+            result = session.execute(query, {'netuid': netuid}).fetchone()
 
-        netuid_db, adjustment_alpha, min_burn, max_burn, timestamp = result
-        adjustment_alpha = float(adjustment_alpha)
-        min_burn = float(min_burn)
-        max_burn = float(max_burn)
+            if not result:
+                raise ValueError(f"未找到 netuid {netuid} 的 hyperparameters 数据")
+
+            netuid_db, adjustment_alpha, min_burn, max_burn, timestamp = result
+            adjustment_alpha = float(adjustment_alpha)
+            min_burn = float(min_burn)
+            max_burn = float(max_burn)
+        except Exception as e:
+            logger.error(f"获取hyperparameters时出错: {e}")
+            # 回滚事务
+            if session:
+                try:
+                    session.rollback()
+                except Exception as rollback_error:
+                    logger.error(f"回滚事务时出错: {rollback_error}")
+            raise
+        finally:
+            # 确保会话被正确关闭
+            if session:
+                try:
+                    session.close()
+                except Exception as close_error:
+                    logger.error(f"关闭会话时出错: {close_error}")
 
         # 根据 adjustment_alpha 计算4个回收率
         # 公式: [1-(1-a)/2, 1, 1+(1-a)/2, 1+(1-a)]
@@ -519,9 +556,13 @@ class MinerRegistrationService:
 
     def _query_register_events_count_by_netuid(self, netuid: int, beg_block: int, end_block: int) -> int:
         """查询注册事件数量"""
+        session = None
         try:
+            # 创建新的会话以避免事务冲突
+            session = MetagraphSession()
+
             query = text("SELECT COUNT(*) FROM regevents WHERE subnet = :netuid AND block BETWEEN :beg_block AND :end_block")
-            result = metagraph_session.execute(query, {
+            result = session.execute(query, {
                 'netuid': netuid,
                 'beg_block': beg_block,
                 'end_block': end_block
@@ -529,7 +570,20 @@ class MinerRegistrationService:
             return result if result else 0
         except Exception as e:
             logger.error(f"查询注册事件数量时出错: {e}")
+            # 回滚事务
+            if session:
+                try:
+                    session.rollback()
+                except Exception as rollback_error:
+                    logger.error(f"回滚事务时出错: {rollback_error}")
             return 0
+        finally:
+            # 确保会话被正确关闭
+            if session:
+                try:
+                    session.close()
+                except Exception as close_error:
+                    logger.error(f"关闭会话时出错: {close_error}")
 
     def _execute_registration(self, subtensor, netuid: int, wallets: dict, pending_registrations: List[dict]):
         """执行注册逻辑"""
