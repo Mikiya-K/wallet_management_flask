@@ -70,7 +70,8 @@ BASE_BLOCK = {
     180: int(os.getenv('BASE_BLOCK_180', '3514065')),
     44: int(os.getenv('BASE_BLOCK_44', '3550319')),
     4: int(os.getenv('BASE_BLOCK_4', '5282253')),
-    172: int(os.getenv('BASE_BLOCK_172', '4177902'))
+    172: int(os.getenv('BASE_BLOCK_172', '4177902')),
+    123: int(os.getenv('BASE_BLOCK_123', '5794330'))
 }
 
 # 配置日志
