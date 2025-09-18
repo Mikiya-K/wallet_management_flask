@@ -31,6 +31,10 @@ sys.path.insert(0, console_root)
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
+# HTTP请求
+import requests
+import json
+
 # 加载环境变量
 load_dotenv(os.path.join(console_root, '.env'))
 
@@ -626,6 +630,25 @@ class MinerRegistrationService:
                     logger.info(f"✅ {hotkey_key} 注册成功！返回信息: {result}")
                     # 更新数据库状态
                     self._update_wallet_registration_status(hotkey_key, pending_registrations, True)
+
+                    # 发送Lark通知
+                    try:
+                        # 查找对应的注册记录
+                        parts = hotkey_key.split('-')
+                        if len(parts) >= 3:
+                            wallet_name = parts[0]
+                            miner_name = parts[1]
+                            hotkey_addr = parts[2]
+
+                            for reg_record in pending_registrations:
+                                if (reg_record['wallet'] == wallet_name and
+                                    reg_record['miner_name'] == miner_name and
+                                    reg_record['hotkey'] == hotkey_addr):
+                                    self._send_lark_notification(reg_record, True)
+                                    break
+                    except Exception as e:
+                        logger.error(f"发送Lark通知时出错: {e}")
+
                     # 从待注册列表中移除
                     if hotkey_key in wallets:
                         del wallets[hotkey_key]
@@ -748,6 +771,176 @@ class MinerRegistrationService:
         except Exception as e:
             db_session.rollback()
             logger.error(f"更新注册状态时出错: {e}")
+
+    def _send_lark_notification(self, reg_record: dict, success: bool):
+        """
+        发送Lark通知
+
+        Args:
+            reg_record: 注册记录字典
+            success: 注册是否成功
+        """
+        # 只通知注册成功，不通知失败
+        if not success:
+            return
+
+        try:
+            # 检查是否启用Lark通知
+            lark_enabled = os.getenv('LARK_NOTIFICATION_ENABLED', 'true').lower() == 'true'
+            if not lark_enabled:
+                logger.info("Lark通知已禁用，跳过通知")
+                return
+
+            # 获取Webhook URL
+            webhook_url = os.getenv('LARK_WEBHOOK_URL')
+            if not webhook_url:
+                logger.warning("未配置LARK_WEBHOOK_URL，跳过Lark通知")
+                return
+
+            # 构建通知消息
+            message = self._build_lark_success_message(reg_record)
+
+            # 发送通知
+            if self._send_lark_message(webhook_url, message):
+                logger.info(f"已发送注册成功通知: {reg_record.get('wallet')}/{reg_record.get('miner_name')}")
+            else:
+                logger.error("Lark通知发送失败")
+
+        except Exception as e:
+            logger.error(f"发送Lark通知时出错: {e}")
+
+    def _build_lark_success_message(self, reg_record: dict) -> dict:
+        """构建Lark注册成功消息"""
+        from datetime import datetime
+
+        # 格式化时间
+        registered_time = reg_record.get('registered_time')
+        if registered_time:
+            if isinstance(registered_time, str):
+                time_str = registered_time
+            else:
+                time_str = registered_time.strftime('%Y-%m-%d %H:%M:%S')
+        else:
+            time_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        # 构建富文本消息
+        message = {
+            "msg_type": "interactive",
+            "card": {
+                "elements": [
+                    {
+                        "tag": "div",
+                        "text": {
+                            "content": "🎉 **矿工注册成功通知**",
+                            "tag": "lark_md"
+                        }
+                    },
+                    {
+                        "tag": "hr"
+                    },
+                    {
+                        "tag": "div",
+                        "fields": [
+                            {
+                                "is_short": True,
+                                "text": {
+                                    "content": f"**钱包名称**\n{reg_record.get('wallet', 'N/A')}",
+                                    "tag": "lark_md"
+                                }
+                            },
+                            {
+                                "is_short": True,
+                                "text": {
+                                    "content": f"**矿工名称**\n{reg_record.get('miner_name', 'N/A')}",
+                                    "tag": "lark_md"
+                                }
+                            },
+                            {
+                                "is_short": True,
+                                "text": {
+                                    "content": f"**子网ID**\n{reg_record.get('subnet', 'N/A')}",
+                                    "tag": "lark_md"
+                                }
+                            },
+                            {
+                                "is_short": True,
+                                "text": {
+                                    "content": f"**网络类型**\n{reg_record.get('network', 'N/A')}",
+                                    "tag": "lark_md"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "tag": "div",
+                        "text": {
+                            "content": f"**Hotkey地址**\n`{reg_record.get('hotkey', 'N/A')}`",
+                            "tag": "lark_md"
+                        }
+                    },
+                    {
+                        "tag": "div",
+                        "text": {
+                            "content": f"**注册时间**\n{time_str}",
+                            "tag": "lark_md"
+                        }
+                    }
+                ],
+                "header": {
+                    "title": {
+                        "content": "矿工注册成功 ✅",
+                        "tag": "plain_text"
+                    },
+                    "template": "green"
+                }
+            }
+        }
+
+        return message
+
+    def _send_lark_message(self, webhook_url: str, message: dict) -> bool:
+        """
+        发送消息到Lark
+
+        Args:
+            webhook_url: Lark Webhook URL
+            message: 消息内容
+
+        Returns:
+            bool: 发送是否成功
+        """
+        try:
+            headers = {
+                'Content-Type': 'application/json'
+            }
+
+            response = requests.post(
+                webhook_url,
+                headers=headers,
+                data=json.dumps(message),
+                timeout=10
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('code') == 0:
+                    return True
+                else:
+                    logger.error(f"Lark通知发送失败: {result.get('msg', 'Unknown error')}")
+                    return False
+            else:
+                logger.error(f"Lark通知发送失败: HTTP {response.status_code}")
+                return False
+
+        except requests.exceptions.Timeout:
+            logger.error("Lark通知发送超时")
+            return False
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Lark通知发送网络错误: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Lark通知发送未知错误: {e}")
+            return False
 
     def _mark_registration_deleted(self, reg_record: dict):
         """

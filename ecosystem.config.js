@@ -50,7 +50,9 @@ module.exports = {
             max_memory_restart: '1G',
             env: {
                 PYTHONPATH: '/root/workspace/wallet_management_flask',
-                PYTHONUNBUFFERED: '1'
+                PYTHONUNBUFFERED: '1',
+                LARK_NOTIFICATION_ENABLED: 'true',
+                LARK_WEBHOOK_URL: 'https://open.larksuite.com/open-apis/bot/v2/hook/f2d3c387-90f8-4287-8398-026f795a4e78'
             },
             env_file: '.env',
             error_file: './logs/register-error.log',
