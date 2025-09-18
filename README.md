@@ -47,28 +47,107 @@ nano .env
 **必须配置的关键变量：**
 
 ```bash
-# 数据库配置
+# =============================================================================
+# 🔴 核心必须配置项（缺少任何一项都无法启动）
+# =============================================================================
+
+# 1. 应用环境配置
+ENV=production                    # 运行环境：development, production
+
+# 2. 安全密钥配置（生产环境必须设置强密钥）
+SECRET_KEY=your-very-secure-secret-key-here-at-least-32-characters
+JWT_SECRET_KEY=your-jwt-secret-key-here-different-from-secret-key
+
+# 3. 数据库配置（两个数据库连接都必须配置）
+# 基础数据库连接（用于注册服务动态创建连接）
 DATABASE_URL=postgresql://username:password@localhost
+# Flask应用专用数据库连接（包含具体数据库名）
 FLASK_DATABASE_URL=postgresql://username:password@localhost/wallet_management
 
-# 安全密钥（请生成你自己的密钥）
-SECRET_KEY=your-very-secure-secret-key-here
-JWT_SECRET_KEY=your-jwt-secret-key-here
-WALLET_MASTER_KEY=your-base64-encoded-32-byte-master-key
+# 4. 钱包密码加密配置（用于安全存储钱包密码）
+# 生成方法：python -c "import base64, os; print(base64.b64encode(os.urandom(32)).decode())"
+WALLET_MASTER_KEY=your-base64-encoded-32-byte-master-key-here
 
-# 应用环境
-ENV=production
+# =============================================================================
+# 🟡 重要配置项（建议配置，有默认值）
+# =============================================================================
+
+# 5. Bittensor网络配置
+BITTENSOR_NETWORK=test            # 网络类型：test, main
+BITTENSOR_WALLET_PATH=~/.bittensor/wallets
+
+# 6. Redis缓存配置（用于性能优化）
+REDIS_URL=redis://localhost:6379/0
+
+# 7. 初始管理员配置
+INITIAL_ADMIN_USERNAME=admin
+INITIAL_ADMIN_PASSWORD=your-secure-admin-password
+
+# =============================================================================
+# 🟢 可选配置项（高级配置）
+# =============================================================================
+
+# 8. JWT认证配置
+JWT_ACCESS_EXPIRES=3600           # 访问令牌过期时间（秒）
+JWT_REFRESH_EXPIRES=86400         # 刷新令牌过期时间（秒）
+
+# 9. 安全配置
+MAX_LOGIN_ATTEMPTS=5              # 最大登录失败次数
+
+# 10. 日志配置
+LOG_LEVEL=WARNING                 # 日志级别：DEBUG, INFO, WARNING, ERROR
+LOG_FILE_PATH=logs/app.log        # 日志文件路径
+
+# 11. 钱包加密高级配置
+WALLET_PBKDF2_ITERATIONS=100000   # PBKDF2迭代次数，建议100000以上
+
+# 12. 矿工注册服务基础区块配置（可选，有默认值）
+BASE_BLOCK_18=2720320             # 子网18的基础区块
+BASE_BLOCK_22=2807542             # 子网22的基础区块
+BASE_BLOCK_41=4177902             # 子网41的基础区块
+BASE_BLOCK_180=3514065            # 子网180的基础区块
+BASE_BLOCK_44=3550319             # 子网44的基础区块
+BASE_BLOCK_4=5282253              # 子网4的基础区块
+BASE_BLOCK_172=4177902            # 子网172的基础区块
+BASE_BLOCK_123=5794330            # 子网123的基础区块
+
 ```
 
-**生成安全密钥：**
+## 🔧 配置验证和安全提醒
+
+### 配置验证
+
+应用启动时会自动验证关键配置：
 
 ```bash
-# 生成 WALLET_MASTER_KEY
+# 如果配置有误，会显示类似错误：
+⚠️ 配置验证失败:
+  - SECRET_KEY 必须设置
+  - DATABASE_URL 必须设置
+  - WALLET_MASTER_KEY 必须设置
+  - WALLET_MASTER_KEY 长度至少32字符
+```
+
+### 生成安全密钥
+
+```bash
+# 生成 WALLET_MASTER_KEY（Base64编码的32字节密钥）
 python -c "import base64, os; print(base64.b64encode(os.urandom(32)).decode())"
 
-# 生成其他密钥
+# 生成 SECRET_KEY 和 JWT_SECRET_KEY
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
+
+### 🔒 安全提醒
+
+1. **生产环境必须使用强密钥**，不要使用示例中的密钥
+2. **定期轮换密钥**，特别是 SECRET_KEY 和 JWT_SECRET_KEY
+3. **确保数据库用户权限最小化**
+4. **使用 HTTPS 连接数据库**（如果是远程数据库）
+5. **定期备份 WALLET_MASTER_KEY**，丢失将无法解密钱包密码
+6. **生产环境必须设置强的初始管理员密码**
+7. **部署后建议立即修改初始管理员密码**
+8. **确保 .env 文件不被提交到版本控制系统**
 
 ### 5. 创建数据库
 
@@ -100,7 +179,7 @@ flask db upgrade
 ### 7. 启动服务
 
 ```bash
-# 按照实际使用需求修改ecosystem.config.js（含启动路径）
+# 按照实际使用需求修改ecosystem.config.js（含启动路径与地址及端口）
 nano ecosystem.config.js
 
 # 使用 PM2 启动所有服务
