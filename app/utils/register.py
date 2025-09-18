@@ -477,7 +477,7 @@ class MinerRegistrationService:
                 reg_number = self._query_register_events_count_by_netuid(netuid, last_interval_boot_block, cur_block)
                 recycle = subtensor.recycle(netuid=netuid, block=cur_block)
                 estimate_recycle, min_burn, max_burn = self._estimate_next_recycle(netuid, reg_number, recycle.tao, MAX_REGISTRATION_COUNT_PER_INTERVAL)
-                logger.debug(f"estimate_recycle {estimate_recycle}, min_burn {min_burn}, max_burn {max_burn}")
+                logger.debug(f"estimate_recycle {estimate_recycle}, max_fee {max_fee}, min_burn {min_burn}, max_burn {max_burn}")
 
             if roundBlock == 359 and recycle.tao > 0:  # launchFrom = 359
                 if estimate_recycle <= max_fee and estimate_recycle >= min_burn and estimate_recycle <= max_burn:
