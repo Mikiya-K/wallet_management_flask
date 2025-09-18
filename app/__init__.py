@@ -1,3 +1,4 @@
+import datetime
 from flask import Flask, jsonify
 from flask_jwt_extended import jwt_required
 from .config import get_config, parse_database_url
@@ -66,25 +67,42 @@ def create_app(config_class=None):
     # 健康检查端点
     @app.route('/health')
     @cache.cached(timeout=10)  # 缓存10秒
-    def health_check():
+    def app_health_check():
         """健康检查端点"""
-        # 检查数据库连接状态
         try:
-            db.engine.execute('SELECT 1')
-            db_status = "connected"
+            # 检查数据库连接状态
+            try:
+                from sqlalchemy import text
+                with db.engine.connect() as connection:
+                    connection.execute(text('SELECT 1'))
+                db_status = "connected"
+            except Exception as e:
+                db_status = f"disconnected: {str(e)}"
+
+            # 检查缓存状态
+            try:
+                cache.set('health_check', 'test', timeout=5)
+                cache_test = cache.get('health_check')
+                cache_status = "active" if cache_test == 'test' else "inactive"
+            except Exception as e:
+                cache_status = f"error: {str(e)}"
+
+            return jsonify({
+                "status": "healthy",
+                "environment": app.config['ENV'],
+                "debug": app.debug,
+                "database": db_status,
+                "cache": cache_status,
+                "timestamp": datetime.datetime.now().isoformat()
+            })
+
         except Exception as e:
-            db_status = f"disconnected: {str(e)}"
+            logger.error(f"健康检查异常: {str(e)}")
+            return jsonify({
+                "status": "error",
+                "message": f"Health check failed: {str(e)}"
+            }), 500
 
-        # 检查缓存状态
-        cache_status = "active" if cache.cache else "inactive"
-
-        return jsonify({
-            "status": "healthy",
-            "environment": app.config['ENV'],
-            "debug": app.debug,
-            "database": db_status,
-            "cache": cache_status
-        })
 
     # 缓存管理端点
     @app.route('/cache/clear', methods=['POST'])

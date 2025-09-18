@@ -37,7 +37,7 @@ class AccessLogger:
         """请求后钩子 - 记录访问日志"""
         # 跳过健康检查以减少日志噪音
         if request.path == '/health':
-            return
+            return response
 
         # 计算请求处理时间
         duration = round((time.time() - g.start_time) * 1000, 2)  # 毫秒
